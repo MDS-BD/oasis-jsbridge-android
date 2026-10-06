@@ -17,7 +17,6 @@ package de.prosiebensat1digital.oasisjsbridge
 
 import com.google.gson.Gson
 import kotlin.reflect.*
-import kotlin.reflect.full.memberFunctions
 
 // Represents a (reflected) function parameter (or return value) with its (optional) name based on:
 // - (ideally) Kotlin KParameter or KType which has the (full) reflection info
@@ -89,17 +88,6 @@ internal open class Parameter private constructor(
     //
     @Suppress("UNUSED")  // Called from JNI
     val invokeMethod: Method? by lazy {
-        // Note: kotlin-reflect v1.3.31 and v1.3.40 crash with an exception when calling
-        // KClass.memberFunctions for a lambda
-        try {
-            if (kotlinType != null) {
-                val kotlinClass = kotlinType.classifier as? KClass<*>
-                val kotlinFunction =
-                    kotlinClass?.memberFunctions?.firstOrNull { it.name == "invoke" }
-                return@lazy kotlinFunction?.let { Method(it, true, customClassLoader) }
-            }
-        } catch (t: Throwable) {}
-
         val javaMethod = javaClass?.methods?.firstOrNull { it.name == "invoke" } ?: return@lazy null
 
         if (kotlinType == null) {
