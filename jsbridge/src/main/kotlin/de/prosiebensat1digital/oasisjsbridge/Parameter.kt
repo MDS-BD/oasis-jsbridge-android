@@ -18,6 +18,7 @@ package de.prosiebensat1digital.oasisjsbridge
 import com.google.gson.Gson
 import kotlin.reflect.*
 import kotlin.reflect.full.memberFunctions
+import kotlin.reflect.full.valueParameters
 
 // Represents a (reflected) function parameter (or return value) with its (optional) name based on:
 // - (ideally) Kotlin KParameter or KType which has the (full) reflection info
@@ -96,7 +97,16 @@ internal open class Parameter private constructor(
                 val kotlinClass = kotlinType.classifier as? KClass<*>
                 val kotlinFunction =
                     kotlinClass?.memberFunctions?.firstOrNull { it.name == "invoke" }
-                return@lazy kotlinFunction?.let { Method(it, true, customClassLoader) }
+                        ?: return@lazy null
+
+                // FunctionN.invoke can expose P1..Pn/R instead of the concrete KType arguments.
+                // Keep those signatures on the argument-preserving fallback below.
+                val hasUnresolvedTypes =
+                    kotlinFunction.returnType.classifier is KTypeParameter ||
+                        kotlinFunction.valueParameters.any { it.type.classifier is KTypeParameter }
+                if (!hasUnresolvedTypes) {
+                    return@lazy Method(kotlinFunction, true, customClassLoader)
+                }
             }
         } catch (t: Throwable) {}
 
